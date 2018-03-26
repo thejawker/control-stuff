@@ -184,6 +184,38 @@ class Bulb
         return $rx;
     }
 
+    private function changeState(int $retry, bool $turnOn = true)
+    {
+        if ($this->protocol === 'LEDENET_ORIGINAL') {
+            $messageOn = [0xcc, 0x23, 0x33];
+            $messageOff = [0xcc, 0x24, 0x33];
+        } else {
+            $messageOn = [0x71, 0x23, 0x0f];
+            $messageOff = [0x71, 0x24, 0x0f];
+        }
+
+        $message = $turnOn ? $messageOn: $messageOff;
+
+        $this->sendMessage($message);
+    }
+
+    public function turnOn(int $retry = 2)
+    {
+        $this->isOn = true;
+        $this->changeState($retry, true);
+    }
+
+    public function turnOff(int $retry = 2)
+    {
+        $this->isOn = false;
+        $this->changeState($retry, false);
+    }
+
+    public function toggle(int $retry = 2)
+    {
+        $this->changeState($retry, !$this->isOn);
+    }
+
     private function determineQueryLength(int $retry = 2)
     {
         // Determine the type of protocol based on the first 2 bytes.
@@ -233,8 +265,6 @@ class Bulb
     private function determineMode($warmWhiteLevel, $patternCode)
     {
         $mode = 'unknown';
-        dump("ww_level " . $warmWhiteLevel);
-        dump("pattern_level " . $patternCode);
 
         if (in_array($patternCode, [0x61, 0x62])) {
             if ($this->rgbwCapable) {

@@ -33,7 +33,7 @@ class PresetPattern
     const WHITE_STROBE_FLASH = 0x37;
     const SEVEN_COLOR_JUMPING = 0x38;
 
-    public static function isValid($pattern): bool
+    public static function isValid(int $pattern): bool
     {
         if ($pattern < 0x25 || $pattern > 0x38) {
             return false;
@@ -42,7 +42,14 @@ class PresetPattern
         return true;
     }
 
-    public function getConstants(): ?array
+    public static function getName(int $pattern)
+    {
+        $values = array_flip(self::getConstants());
+        $name = $values[$pattern];
+        return title_case(str_replace('_', ' ', $name));
+    }
+
+    public static function getConstants(): ?array
     {
         try {
             return (new ReflectionClass(self::class))

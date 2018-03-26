@@ -143,6 +143,7 @@ class Socket
     {
         $this->socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
         $this->setSocketTimeout();
+        dump('Yes');
 
         return socket_connect($this->socket, $ip, $port);
     }
@@ -154,13 +155,14 @@ class Socket
 
     public function sendMessage($bytes)
     {
-        socket_send($this->socket, $bytes, count($bytes), 0);
+        $packedBytes = pack("C*", ...$bytes);
+        return socket_send($this->socket, $packedBytes, count($bytes), 0);
     }
 
     public function readMessage(int $expected)
     {
         $remaining = $expected;
-        $rx = [];
+        $rx = "";
         $this->startTimer();
 
         while ($remaining > 0) {
@@ -174,10 +176,10 @@ class Socket
             if ($chunk) {
                 $this->startTimer();
             }
-            $remaining -= count($chunk);
-            $rx = array_merge($rx, $chunk);
+            $remaining -= strlen($chunk);
+            $rx .= $chunk;
         }
 
-        return $rx;
+        return array_values(unpack("C*", $rx));
     }
 }

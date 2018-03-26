@@ -18,7 +18,7 @@ class BulbScanner
      *
      * @var array
      */
-    private $discoveredLights = [];
+    public $discoveredLights = [];
 
     /**
      * Starts scanning the network and discovering devices.
@@ -30,11 +30,8 @@ class BulbScanner
         $socket = new Socket();
         $socket->timeout = $timeout;
         $socket->broadcast(self::MESSAGE, function ($data) {
-            dump($data);
             $this->addLight($data);
         });
-
-        dump($this->discoveredLights);
     }
 
     /**

@@ -233,6 +233,8 @@ class Bulb
     private function determineMode($warmWhiteLevel, $patternCode)
     {
         $mode = 'unknown';
+        dump("ww_level " . $warmWhiteLevel);
+        dump("pattern_level " . $patternCode);
 
         if (in_array($patternCode, [0x61, 0x62])) {
             if ($this->rgbwCapable) {
@@ -249,7 +251,7 @@ class Bulb
         } elseif (PresetPattern::isValid($patternCode)) {
             $mode = 'preset';
         } elseif (BuiltInTimer::isValid($patternCode)) {
-            $mode = BuiltInTimer::valToString($patternCode);
+            $mode = BuiltInTimer::getName($patternCode);
         }
 
         return $mode;

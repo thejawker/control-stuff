@@ -12,5 +12,7 @@ class BulbScannerTest extends TestCase
         $scanner = new BulbScanner();
 
         $scanner->scan(1);
+
+        dd($scanner->discoveredLights);
     }
 }

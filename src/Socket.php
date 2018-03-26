@@ -47,18 +47,6 @@ class Socket
     private $timeStarted;
 
     /**
-     * Initializes the Socket.
-     */
-    public function __construct()
-    {
-        $this->socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
-
-        socket_bind($this->socket, self::HOST_ADDRESS, self::DISCOVERY_PORT);
-        socket_set_option($this->socket, SOL_SOCKET, SO_BROADCAST, 1);
-        socket_set_option($this->socket, SOL_SOCKET, SO_RCVTIMEO, ["sec" => 1, "usec" => 0]);
-    }
-
-    /**
      * Broadcasts the message through the socket
      * and calls the callback when listening.
      *
@@ -67,7 +55,7 @@ class Socket
      */
     public function broadcast(string $message, callable $callback)
     {
-        $this->startTimer();
+        $this->prepareBroadCast();
         
         while (true) {
             if ($this->shouldBreak()) {
@@ -97,7 +85,7 @@ class Socket
     /**
      * Starts the timer.
      */
-    public function startTimer()
+    private function startTimer()
     {
         $this->timeStarted = time();
     }
@@ -133,8 +121,63 @@ class Socket
     /**
      * Closes the socket.
      */
-    private function closeSocket()
+    public function closeSocket()
     {
-        socket_close($this->socket);
+        if ($this->socket) {
+            socket_close($this->socket);
+        }
+    }
+
+    private function prepareBroadCast()
+    {
+        $this->socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
+
+        socket_bind($this->socket, self::HOST_ADDRESS, self::DISCOVERY_PORT);
+        socket_set_option($this->socket, SOL_SOCKET, SO_BROADCAST, 1);
+        $this->setSocketTimeout();
+
+        $this->startTimer();
+    }
+
+    public function openStream(string $ip, int $port): bool
+    {
+        $this->socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+        $this->setSocketTimeout();
+
+        return socket_connect($this->socket, $ip, $port);
+    }
+
+    private function setSocketTimeout(): void
+    {
+        socket_set_option($this->socket, SOL_SOCKET, SO_RCVTIMEO, ["sec" => 1, "usec" => 0]);
+    }
+
+    public function sendMessage($bytes)
+    {
+        socket_send($this->socket, $bytes, count($bytes), 0);
+    }
+
+    public function readMessage(int $expected)
+    {
+        $remaining = $expected;
+        $rx = [];
+        $this->startTimer();
+
+        while ($remaining > 0) {
+            if ($this->shouldBreak()) {
+                break;
+            }
+
+            socket_set_nonblock($this->socket);
+            socket_recv($this->socket, $chunk, $remaining, null);
+
+            if ($chunk) {
+                $this->startTimer();
+            }
+            $remaining -= count($chunk);
+            $rx = array_merge($rx, $chunk);
+        }
+
+        return $rx;
     }
 }

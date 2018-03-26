@@ -2,6 +2,7 @@
 
 namespace TheJawker\ControlStuff\LedFlux;
 
+use ReflectionClass;
 use ReflectionException;
 
 class BuiltInTimer

@@ -6,19 +6,19 @@ use TheJawker\ControlStuff\Socket;
 
 class Bulb
 {
-    public $ip;
-    public $port;
-    public $timeout;
-    public $socket;
-    private $isOn;
-    private $queryLength;
-    private $rgbwProtocol;
-    private $rgbwCapable;
-    private $protocol;
-    private $rawState;
-    private $mode;
-    private $lock;
-    private $useChecksum;
+    public $ip = null;
+    public $port = null;
+    public $timeout = null;
+    public $socket = null;
+    private $isOn = false;
+    private $queryLength = 0;
+    private $rgbwProtocol = false;
+    private $rgbwCapable = false;
+    private $protocol = null;
+    private $rawState = null;
+    private $mode = null;
+    private $lock = null;
+    private $useChecksum = true;
 
     public function __construct(string $ip, int $port = 5577, int $timeout = 5)
     {
@@ -27,30 +27,16 @@ class Bulb
         $this->timeout = $timeout;
         $this->socket = new Socket();
 
-        $this->protocol = null;
-        $this->rgbwCapable = false;
-        $this->rgbwProtocol = false;
-
-        $this->rawState = null;
-        $this->isOn = false;
-        $this->mode = null;
-        $this->lock = null;
-        $this->queryLength = 0;
-        $this->useChecksum = true;
-
         $this->connect(2);
         $this->updateState();
     }
 
-    private function connect(int $retry = 0)
+    public function connect(int $retry = 2)
     {
-        $this->socket->closeSocket();
-        if (!$this->socket->openStream($this->ip, $this->port)) {
-            if ($retry < 1) {
-                return;
-            }
-            $this->connect(max($retry - 1, 0));
-        }
+        retry($retry, function () {
+            $this->socket->closeSocket();
+            return $this->socket->openStream($this->ip, $this->port);
+        });
     }
 
     private function updateState(int $retry = 2)
@@ -173,7 +159,7 @@ class Bulb
         $this->sendMessage($message);
         $rx = $this->readMessage($this->queryLength);
 
-        if($rx === null || count($rx) < $this->queryLength) {
+        if ($rx === null || count($rx) < $this->queryLength) {
             if ($retry < 1) {
                 $this->isOn = false;
                 return $rx;
@@ -194,7 +180,7 @@ class Bulb
             $messageOff = [0x71, 0x24, 0x0f];
         }
 
-        $message = $turnOn ? $messageOn: $messageOff;
+        $message = $turnOn ? $messageOn : $messageOff;
 
         $this->sendMessage($message);
     }

@@ -2,7 +2,8 @@
 
 namespace TheJawker\ControlStuff\Test;
 
-use TheJawker\ControlStuff\LedFlux\Bulb;
+use TheJawker\ControlStuff\LedFlux\Bulb\Bulb;
+use TheJawker\ControlStuff\LedFlux\Color;
 
 class BulbTest extends TestCase
 {
@@ -10,13 +11,14 @@ class BulbTest extends TestCase
     public function a_bulb_can_be_instantiated_from_ip_alone()
     {
         $bulb = new Bulb('192.168.178.15');
-//        $bulb->setRgbw(255, 30, 30, 140, true, 100);
-        $bulb->toggle();
+        $bulb->setColor($this->randomColor());
 
         $bulb = new Bulb('192.168.178.24');
-//        $bulb->setRgbw(255, 30, 30, 0, true, 100);
-        $bulb->toggle();
-//
-//        $this->assertInstanceOf(Bulb::class, $bulb);
+        $bulb->setColor($this->randomColor());
+    }
+
+    private function randomColor()
+    {
+        return new Color(rand(0, 255),rand(0, 255),rand(0, 255), rand(0, 100));
     }
 }

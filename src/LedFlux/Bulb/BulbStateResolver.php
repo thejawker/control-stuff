@@ -1,22 +1,28 @@
 <?php
 
-namespace TheJawker\ControlStuff\LedFlux;
+namespace TheJawker\ControlStuff\LedFlux\Bulb;
 
-class StateResolver
+class BulbStateResolver
 {
     /**
      * @var Bulb
      */
     private $bulb;
+    private $response;
 
     public function __construct(Bulb $bulb)
     {
         $this->bulb = $bulb;
     }
 
-    public static function forBulb(AbstractBulb $bulb)
+    public static function forBulb(Bulb $bulb)
     {
         return new self($bulb);
+    }
+
+    public function fromResponse(LedNetOriginalResponse $response)
+    {
+        $this->response = $response;
     }
 
     public function resolve(array $byteData)
@@ -80,6 +86,7 @@ class StateResolver
             $this->bulb->protocol = 'LEDENET';
         }
 
+        // Devices that use the original LEDNET protocol
         if ($rx[1] === 0x01) {
             $this->bulb->protocol = 'LEDENET_ORIGINAL';
         }
@@ -116,6 +123,31 @@ class StateResolver
     {
         $pattern = $rx[3];
         $wwLevel = $rx[9];
-        $this->bulb->mode = $this->bulb->determineMode($wwLevel, $pattern);
+        $this->bulb->mode = $this->determineMode($wwLevel, $pattern);
+    }
+
+    public function determineMode($warmWhiteLevel, $patternCode)
+    {
+        $mode = 'unknown';
+
+        if (in_array($patternCode, [0x61, 0x62])) {
+            if ($this->bulb->rgbwCapable) {
+                $mode = 'color';
+            } elseif ($warmWhiteLevel != 0) {
+                $mode = 'ww';
+            } else {
+                $mode = 'color';
+            }
+        } elseif ($patternCode === 0x60) {
+            $mode = 'custom';
+        } elseif ($patternCode === 0x41) {
+            $mode = 'color';
+        } elseif (PresetPattern::isValid($patternCode)) {
+            $mode = 'preset';
+        } elseif (BuiltInTimer::isValid($patternCode)) {
+            $mode = BuiltInTimer::getName($patternCode);
+        }
+
+        return $mode;
     }
 }

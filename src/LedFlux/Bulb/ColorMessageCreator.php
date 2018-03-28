@@ -3,12 +3,12 @@
 namespace TheJawker\ControlStuff\LedFlux\Bulb;
 
 use TheJawker\ControlStuff\ByteArray;
-use TheJawker\ControlStuff\LedFlux\Color;
+use TheJawker\ControlStuff\LedFlux\ColorSetting;
 
 class ColorMessageCreator
 {
     /**
-     * @var Color
+     * @var ColorSetting
      */
     private $color;
     /**
@@ -16,7 +16,7 @@ class ColorMessageCreator
      */
     private $bulb;
 
-    public function __construct(Bulb $bulb, Color $color)
+    public function __construct(Bulb $bulb, ColorSetting $color)
     {
         $this->color = $color;
         $this->bulb = $bulb;

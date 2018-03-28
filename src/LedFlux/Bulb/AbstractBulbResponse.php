@@ -2,7 +2,7 @@
 
 namespace TheJawker\ControlStuff\LedFlux\Bulb;
 
-use TheJawker\ControlStuff\LedFlux\Color;
+use TheJawker\ControlStuff\LedFlux\ColorSetting;
 
 abstract class AbstractBulbResponse
 {
@@ -20,7 +20,7 @@ abstract class AbstractBulbResponse
     )
     {
         $this->color =
-            new Color(
+            new ColorSetting(
                 $red,
                 $green,
                 $blue,

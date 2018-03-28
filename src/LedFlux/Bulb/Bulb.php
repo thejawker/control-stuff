@@ -4,7 +4,7 @@ namespace TheJawker\ControlStuff\LedFlux\Bulb;
 
 use Primal\Color\RGBColor;
 use RuntimeException;
-use TheJawker\ControlStuff\LedFlux\Color;
+use TheJawker\ControlStuff\LedFlux\ColorSetting;
 use TheJawker\ControlStuff\Socket;
 
 class Bulb
@@ -185,7 +185,7 @@ class Bulb
 
     public function setRgb(int $red, int $green, int $blue, bool $persist = true, $brightness = null, int $retry = 2)
     {
-        $color = new Color($red, $green, $blue);
+        $color = new ColorSetting($red, $green, $blue);
         $this->setRgbw($color, $persist, $brightness, $retry);
     }
 
@@ -214,7 +214,7 @@ class Bulb
         return $this->isLedenet() ? $this->rawState[11] : 0;
     }
 
-    public function setRgbw(Color $color, bool $persist = true, $brightness = null, int $retry = 2)
+    public function setRgbw(ColorSetting $color, bool $persist = true, $brightness = null, int $retry = 2)
     {
         if ($this->supportsRgbw($color)) {
             throw new RuntimeException("RGBW command sent to non-RGBW device");
@@ -237,10 +237,10 @@ class Bulb
     }
 
     /**
-     * @param Color $color
+     * @param ColorSetting $color
      * @return bool
      */
-    private function supportsRgbw(Color $color): bool
+    private function supportsRgbw(ColorSetting $color): bool
     {
         return $color->utilizesRgbw() && !$this->rgbwCapable;
     }

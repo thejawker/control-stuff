@@ -3,7 +3,7 @@
 namespace TheJawker\ControlStuff\Test;
 
 use TheJawker\ControlStuff\LedFlux\Bulb\Bulb;
-use TheJawker\ControlStuff\LedFlux\Color;
+use TheJawker\ControlStuff\LedFlux\ColorSetting;
 
 class BulbTest extends TestCase
 {
@@ -19,6 +19,6 @@ class BulbTest extends TestCase
 
     private function randomColor()
     {
-        return new Color(rand(0, 255),rand(0, 255),rand(0, 255), rand(0, 100));
+        return new ColorSetting(rand(0, 255),rand(0, 255),rand(0, 255), rand(0, 100));
     }
 }

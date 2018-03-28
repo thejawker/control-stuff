@@ -4,7 +4,7 @@ namespace TheJawker\ControlStuff\LedFlux;
 
 use Primal\Color\RGBColor;
 
-class Color
+class ColorSetting
 {
     public $red;
     public $green;

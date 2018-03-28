@@ -2,6 +2,9 @@
 
 namespace TheJawker\ControlStuff\LedFlux;
 
+use Primal\Color\HSVColor;
+use Primal\Color\RGBColor;
+use RuntimeException;
 use TheJawker\ControlStuff\Socket;
 
 class Bulb
@@ -33,7 +36,7 @@ class Bulb
 
     public function connect(int $retry = 2)
     {
-        retry($retry, function () {
+        retryCall($retry, function () {
             $this->socket->closeSocket();
             return $this->socket->openStream($this->ip, $this->port);
         });
@@ -232,6 +235,27 @@ class Bulb
         }
     }
 
+    public function getRgb()
+    {
+        if ($this->mode !== 'color') {
+            return [255, 255, 255];
+        }
+
+        return [
+            $this->rawState[6],
+            $this->rawState[7],
+            $this->rawState[8],
+        ];
+    }
+
+    public function getWarmWhite255()
+    {
+        if ($this->mode !== 'ww') {
+            return 255;
+        }
+        return $this->getBrightness();
+    }
+
     private function sendMessage($bytes)
     {
         // Calculate the checksum of the byte array and add to end
@@ -246,6 +270,11 @@ class Bulb
     private function readMessage(int $expected)
     {
         return $this->socket->readMessage($expected);
+    }
+
+    public function setRgb(int $red, int $green, int $blue, bool $persist = true, $brightness = null, int $retry = 2)
+    {
+        $this->setRgbw($red, $green, $blue, null, $persist, $brightness, $retry);
     }
 
     private function determineMode($warmWhiteLevel, $patternCode)
@@ -271,5 +300,179 @@ class Bulb
         }
 
         return $mode;
+    }
+
+    public function getBrightness(): int
+    {
+        if ($this->mode === 'ww') {
+            return (int) $this->rawState[9];
+        }
+
+        return (new RGBColor($this->getRgb()))
+            ->toHSV()->value;
+    }
+
+    public function getWarmWhite(): int
+    {
+        if ($this->protocol === 'LEDENET') {
+            return $this->rawState[9];
+        }
+
+        return 0;
+    }
+
+    public function getColdWhite(): int
+    {
+        if ($this->protocol === 'LEDENET') {
+            return $this->rawState[11];
+        }
+
+        return 0;
+    }
+
+    public function calculateBrightness(array $rgb, int $level)
+    {
+        [$red, $green, $blue] = $rgb;
+        $hsv = (new RGBColor($red, $green, $blue))->toHSV();
+        $hsv->value = $level;
+        $rgb = $hsv->toRGB();
+        return [
+            $rgb->red,
+            $rgb->green,
+            $rgb->blue
+        ];
+    }
+
+    public function setRgbw(
+        int $red = null,
+        int $green = null,
+        int $blue = null,
+        int $white = null,
+        bool $persist = true,
+        $brightness = null,
+        int $retry = 2,
+        $white2 = null
+    )
+    {
+        if (
+            ($red || $green || $blue) &&
+            ($white || $white2) &&
+            !$this->rgbwCapable
+        ) {
+            throw new RuntimeException("RGBW command sent to non-RGBW device");
+        }
+
+        // sample message for original LEDENET protocol (w/o checksum at end)
+        //  0  1  2  3  4
+        // 56 90 fa 77 aa
+        //  |  |  |  |  |
+        //  |  |  |  |  terminator
+        //  |  |  |  blue
+        //  |  |  green
+        //  |  red
+        //  head
+
+        // sample message for 8-byte protocols (w/ checksum at end)
+        //  0  1  2  3  4  5  6
+        // 31 90 fa 77 00 00 0f
+        //  |  |  |  |  |  |  |
+        //  |  |  |  |  |  |  terminator
+        //  |  |  |  |  |  write mask / white2 (see below)
+        //  |  |  |  |  white
+        //  |  |  |  blue
+        //  |  |  green
+        //  |  red
+        //  persistence (31 for true / 41 for false)
+        //
+        // byte 5 can have different values depending on the type
+        // of device:
+        // For devices that support 2 types of white value (warm and cold
+        // white) this value is the cold white value. These use the LEDENET
+        // protocol. If a second value is not given, reuse the first white value.
+        //
+        // For devices that cannot set both rbg and white values at the same time
+        // (including devices that only support white) this value
+        // specifies if this command is to set white value (0f) or the rgb
+        // value (f0).
+        //
+        // For all other rgb and rgbw devices, the value is 00
+
+        // sample message for 9-byte LEDENET protocol (w/ checksum at end)
+        //  0  1  2  3  4  5  6  7
+        // 31 bc c1 ff 00 00 f0 0f
+        //  |  |  |  |  |  |  |  |
+        //  |  |  |  |  |  |  |  terminator
+        //  |  |  |  |  |  |  write mode (f0 colors, 0f whites, 00 colors & whites)
+        //  |  |  |  |  |  cold white
+        //  |  |  |  |  warm white
+        //  |  |  |  blue
+        //  |  |  green
+        //  |  red
+        //  persistence (31 for true / 41 for false)
+        //
+
+        if ($brightness !== null) {
+            [$red, $green, $blue] = $this->calculateBrightness([$red, $green, $blue], $brightness);
+        }
+
+        // The original LEDENET protocol
+        if ($this->protocol === 'LEDENET_ORIGINAL') {
+            $message = [
+                0x56,
+                (int) $red,
+                (int) $green,
+                (int) $blue,
+                0xaa
+            ];
+        } else {
+            // All other devices
+
+            // Assemble the message
+            if ($persist) {
+                $message = [0x31];
+            } else {
+                $message = [0x41];
+            }
+
+            $message[] = $red ? (int) $red : 0;
+            $message[] = $green ? (int) $green : 0;
+            $message[] = $blue ? (int) $blue : 0;
+            $message[] = $white ? (int) $white : 0;
+
+            if ($this->protocol === 'LEDENET') {
+                // LEDENET devices support two white outputs for cold and warm. We set
+                // the second one here - if we're only setting a single white value,
+                // we set the second output to be the same as the first
+
+                if ($white2) {
+                    $message[] = (int) $white2;
+                } elseif ($white) {
+                    $message[] = (int) $white;
+                } else {
+                    $message[] = 0;
+                }
+            }
+
+            // Write mask, default to writing color and shites simultaneously
+            $writeMask = 0x00;
+
+            // RgbwProtocol devices always overwrite both color & whites.
+            if (!$this->rgbwProtocol) {
+                if (!$white && !$white2) {
+                    // Mask out whites.
+                    $writeMask |= 0xf0;
+                } elseif (!$red && !$green && !$blue) {
+                    // Mask out colors.
+                    $writeMask |= 0x0f;
+                }
+            }
+
+            $message[] = $writeMask;
+
+            // Message terminator.
+            $message[] = 0x0f;
+
+            $this->sendMessage($message);
+        }
     }
 }

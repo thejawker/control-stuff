@@ -2,7 +2,6 @@
 
 namespace TheJawker\ControlStuff\LedFlux;
 
-use Primal\Color\HSVColor;
 use Primal\Color\RGBColor;
 use RuntimeException;
 use TheJawker\ControlStuff\Socket;
@@ -13,15 +12,15 @@ class Bulb
     public $port = null;
     public $timeout = null;
     public $socket = null;
-    private $isOn = false;
-    private $queryLength = 0;
-    private $rgbwProtocol = false;
-    private $rgbwCapable = false;
-    private $protocol = null;
-    private $rawState = null;
-    private $mode = null;
-    private $lock = null;
-    private $useChecksum = true;
+    public $isOn = false;
+    public $queryLength = 0;
+    public $rgbwProtocol = false;
+    public $rgbwCapable = false;
+    public $protocol = null;
+    public $rawState = null;
+    public $mode = null;
+    public $lock = null;
+    public $useChecksum = true;
 
     public function __construct(string $ip, int $port = 5577, int $timeout = 5)
     {
@@ -44,103 +43,16 @@ class Bulb
 
     private function updateState(int $retry = 2)
     {
-        $rx = $this->queryState($retry);
+        retryCall($retry, function() use ($retry) {
+            $rx = $this->queryState($retry);
 
-        if (!$rx || count($rx) < $this->queryLength) {
-            $this->isOn = false;
-            return;
-        }
-
-        // typical response:
-        // pos  0  1  2  3  4  5  6  7  8  9 10
-        //    66 01 24 39 21 0a ff 00 00 01 99
-        //     |  |  |  |  |  |  |  |  |  |  |
-        //     |  |  |  |  |  |  |  |  |  |  checksum
-        //     |  |  |  |  |  |  |  |  |  warmwhite
-        //     |  |  |  |  |  |  |  |  blue
-        //     |  |  |  |  |  |  |  green
-        //     |  |  |  |  |  |  red
-        //     |  |  |  |  |  speed: 0f = highest f0 is lowest
-        //     |  |  |  |  <don't know yet>
-        //     |  |  |  preset pattern
-        //     |  |  off(23)/on(24)
-        //     |  type
-        //     msg head
-
-        // response from a 5-channel LEDENET controller:
-        // pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13
-        //    81 25 23 61 21 06 38 05 06 f9 01 00 0f 9d
-        //     |  |  |  |  |  |  |  |  |  |  |  |  |  |
-        //     |  |  |  |  |  |  |  |  |  |  |  |  |  checksum
-        //     |  |  |  |  |  |  |  |  |  |  |  |  color mode (f0 colors were set, 0f whites, 00 all were set)
-        //     |  |  |  |  |  |  |  |  |  |  |  cold-white
-        //     |  |  |  |  |  |  |  |  |  |  <don't know yet>
-        //     |  |  |  |  |  |  |  |  |  warmwhite
-        //     |  |  |  |  |  |  |  |  blue
-        //     |  |  |  |  |  |  |  green
-        //     |  |  |  |  |  |  red
-        //     |  |  |  |  |  speed: 0f = highest f0 is lowest
-        //     |  |  |  |  <don't know yet>
-        //     |  |  |  preset pattern
-        //     |  |  off(23)/on(24)
-        //     |  type
-        //     msg head
-        //
-
-        // Devices that don't require a separate rgb/w bit
-        if (
-            $rx[1] === 0x04 ||
-            $rx[1] === 0x33 ||
-            $rx[1] === 0x81
-        ) {
-            $this->rgbwProtocol = true;
-        }
-
-        // Devices that actually support rgbw
-        if (
-            $rx[1] === 0x04 ||
-            $rx[1] === 0x25 ||
-            $rx[1] === 0x33 ||
-            $rx[1] === 0x81
-        ) {
-            $this->rgbwCapable = true;
-        }
-
-        // Devices that use an 8-byte protocol
-        if ($rx[1] === 0x25 ||
-            $rx[1] === 0x27 ||
-            $rx[1] === 0x35
-        ) {
-            $this->protocol = 'LEDENET';
-        }
-
-        if ($rx[1] === 0x01) {
-            $this->protocol = 'LEDENET_ORIGINAL';
-            $this->useChecksum = false;
-        }
-
-        $pattern = $rx[3];
-        $wwLevel = $rx[9];
-        $mode = $this->determineMode($wwLevel, $pattern);
-
-        if ($mode === 'unknown') {
-            if ($retry < 1) {
-                return;
+            if (!$rx || count($rx) < $this->queryLength) {
+                $this->isOn = false;
+                return false;
             }
-            $this->updateState(max($retry - 1, 0));
-            return;
-        }
 
-        $powerState = $rx[2];
-
-        if ($powerState === 0x23) {
-            $this->isOn = true;
-        } elseif ($powerState === 0x24) {
-            $this->isOn = false;
-        }
-
-        $this->rawState = $rx;
-        $this->mode = $mode;
+            return StateResolver::forBulb($this)->resolve($rx);
+        });
     }
 
     private function queryState(int $retry = 2, $ledType = null)
@@ -277,7 +189,7 @@ class Bulb
         $this->setRgbw($red, $green, $blue, null, $persist, $brightness, $retry);
     }
 
-    private function determineMode($warmWhiteLevel, $patternCode)
+    public function determineMode($warmWhiteLevel, $patternCode)
     {
         $mode = 'unknown';
 
@@ -474,5 +386,88 @@ class Bulb
 
             $this->sendMessage($message);
         }
+    }
+
+    /**
+     * @param $rx
+     */
+    private function detectRgbwProtocol($rx): void
+    {
+        // Devices that don't require a separate rgb/w bit
+        if (
+            $rx[1] === 0x04 ||
+            $rx[1] === 0x33 ||
+            $rx[1] === 0x81
+        ) {
+            $this->rgbwProtocol = true;
+        }
+    }
+
+    /**
+     * @param $rx
+     */
+    private function detectRgbwCapable($rx): void
+    {
+        // Devices that actually support rgbw
+        if (
+            $rx[1] === 0x04 ||
+            $rx[1] === 0x25 ||
+            $rx[1] === 0x33 ||
+            $rx[1] === 0x81
+        ) {
+            $this->rgbwCapable = true;
+        }
+    }
+
+    /**
+     * @param $rx
+     */
+    private function detectProtocol($rx): void
+    {
+        // Devices that use an 8-byte protocol
+        if ($rx[1] === 0x25 ||
+            $rx[1] === 0x27 ||
+            $rx[1] === 0x35
+        ) {
+            $this->protocol = 'LEDENET';
+        }
+
+        if ($rx[1] === 0x01) {
+            $this->protocol = 'LEDENET_ORIGINAL';
+        }
+    }
+
+    /**
+     * @param $rx
+     */
+    private function detectChecksum($rx): void
+    {
+        if ($rx[1] === 0x01) {
+            $this->useChecksum = false;
+        }
+    }
+
+    /**
+     * @param $rx
+     */
+    private function detectPowerState($rx): void
+    {
+        $powerState = $rx[2];
+
+        if ($powerState === 0x23) {
+            $this->isOn = true;
+        } elseif ($powerState === 0x24) {
+            $this->isOn = false;
+        }
+    }
+
+    /**
+     * @param $rx
+     */
+    private function detectMode($rx): void
+    {
+        $pattern = $rx[3];
+        $wwLevel = $rx[9];
+        $this->mode = $this->determineMode($wwLevel, $pattern);
     }
 }

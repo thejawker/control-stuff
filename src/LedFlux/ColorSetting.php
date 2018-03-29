@@ -27,6 +27,14 @@ class ColorSetting
         $this->white2 = $white2;
     }
 
+    public static function fromString($string)
+    {
+        if (preg_match("/rgb\((\d{1,3}),\s{0,1}(\d{1,3}),\s{0,1}(\d{1,3})\)/x", $string, $colors)) {
+            [$_, $red, $green, $blue] = $colors;
+            return new self($red, $green, $blue);
+        }
+    }
+
     public function containsColor()
     {
         return ($this->red || $this->green || $this->blue);

@@ -11,7 +11,7 @@ class BulbTest extends TestCase
     public function a_bulb_can_be_instantiated_from_ip_alone()
     {
         $bulb = new Bulb('192.168.178.15');
-        $bulb->setColor($this->randomColor());
+        $bulb->setColor(ColorSetting::fromString('rgb(255,255,255)'));
 
         $bulb = new Bulb('192.168.178.24');
         $bulb->setColor($this->randomColor());

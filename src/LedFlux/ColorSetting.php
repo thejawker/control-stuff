@@ -29,6 +29,7 @@ class ColorSetting
 
     public static function fromString($string)
     {
+        // Allows for webtype strings ie. rgb(25,25,155) or rgb(25,25,155)
         if (preg_match("/rgb\((\d{1,3}),\s{0,1}(\d{1,3}),\s{0,1}(\d{1,3})\)/x", $string, $colors)) {
             [$_, $red, $green, $blue] = $colors;
             return new self($red, $green, $blue);

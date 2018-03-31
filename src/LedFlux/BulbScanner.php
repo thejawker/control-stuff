@@ -50,6 +50,10 @@ class BulbScanner
             return;
         }
 
-        $this->discoveredLights[$id] = [$ip, $id, $model];
+        $this->discoveredLights[$id] = [
+            'ip' => $ip,
+            'id' => $id,
+            'model' => $model
+        ];
     }
 }

@@ -24,14 +24,17 @@ class BulbScanner
      * Starts scanning the network and discovering devices.
      *
      * @param int $timeout
+     * @return array
      */
-    public function scan(int $timeout = 1)
+    public function scan(int $timeout = 1): array
     {
         $socket = new Socket();
         $socket->timeout = $timeout;
         $socket->broadcast(self::MESSAGE, function ($data) {
             $this->addLight($data);
         });
+
+        return $this->discoveredLights;
     }
 
     /**

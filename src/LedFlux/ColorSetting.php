@@ -34,6 +34,11 @@ class ColorSetting
             [$_, $red, $green, $blue] = $colors;
             return new self($red, $green, $blue);
         }
+
+        if (preg_match("/rgbw\((\d{1,3}),\s{0,1}(\d{1,3}),\s{0,1}(\d{1,3})\,\s{0,1}(\d{1,3})\)/x", $string, $colors)) {
+            [$_, $red, $green, $blue, $white] = $colors;
+            return new self($red, $green, $blue, $white);
+        }
     }
 
     public function containsColor()

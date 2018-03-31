@@ -10,6 +10,8 @@ class BulbTest extends TestCase
     /** @test */
     public function a_bulb_can_be_instantiated_from_ip_alone()
     {
+        $setting = ColorSetting::fromString('rgbw(255,255,255, 100)');
+
         $bulb = new Bulb('192.168.178.15');
         $bulb->setColor(ColorSetting::fromString('rgb(255,255,255)'));
 

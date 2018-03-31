@@ -89,6 +89,11 @@ class Bulb
         return $rx;
     }
 
+    public function powered(bool $powered = null, int $retry = 2)
+    {
+        $this->changeState($retry, $powered);
+    }
+
     private function changeState(int $retry, bool $turnOn = true)
     {
         if ($this->isLedenetOriginal()) {

@@ -144,7 +144,6 @@ class Socket
     {
         $this->socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
         $this->setSocketTimeout();
-        dump('Yes');
 
         return socket_connect($this->socket, $ip, $port);
     }
